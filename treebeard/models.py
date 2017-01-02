@@ -505,19 +505,43 @@ class Node(models.Model):
         """Removes a node and all it's descendants."""
         self.__class__.objects.filter(pk=self.pk).delete()
 
-    def _prepare_pos_var(self, pos, method_name, valid_pos, valid_sorted_pos):
+    def get_node_order_by(self):
+        """
+        Gets node_order_by dynamically as used for sorting immediate
+        children of this node.
+        Default implementation simply uses ``node_order_by`` attribute
+        which is supposed to be static (defined on class).
+        """
+        return self.node_order_by
+
+    def get_parent_node_order_by(self):
+        """
+        Gets node_order_by dynamically for parent of this node
+        (or class defined ``node_order_by`` for root nodes).
+        """
+        if self.is_root():
+            return self.node_order_by
+        return self.get_parent().get_node_order_by()
+
+    def is_sorted(self):
+        return bool(self.get_node_order_by())
+
+    def is_parent_sorted(self):
+        return bool(self.get_parent_node_order_by())
+
+    def _prepare_pos_var(self, pos, method_name, node_order_by, valid_pos, valid_sorted_pos):
         if pos is None:
-            if self.node_order_by:
+            if node_order_by:
                 pos = 'sorted-sibling'
             else:
                 pos = 'last-sibling'
         if pos not in valid_pos:
             raise InvalidPosition('Invalid relative position: %s' % (pos, ))
-        if self.node_order_by and pos not in valid_sorted_pos:
+        if node_order_by and pos not in valid_sorted_pos:
             raise InvalidPosition(
                 'Must use %s in %s when node_order_by is enabled' % (
                     ' or '.join(valid_sorted_pos), method_name))
-        if pos in valid_sorted_pos and not self.node_order_by:
+        if pos in valid_sorted_pos and not node_order_by:
             raise MissingNodeOrderBy('Missing node_order_by attribute.')
         return pos
 
@@ -529,6 +553,7 @@ class Node(models.Model):
         return self._prepare_pos_var(
             pos,
             'add_sibling',
+            self.get_parent_node_order_by(),
             self._valid_pos_for_add_sibling,
             self._valid_pos_for_sorted_add_sibling)
 
@@ -537,10 +562,16 @@ class Node(models.Model):
     _valid_pos_for_sorted_move = _valid_pos_for_sorted_add_sibling + (
         'sorted-child',)
 
-    def _prepare_pos_var_for_move(self, pos):
+    def _prepare_pos_var_for_move(self, pos, target):
+        if pos and pos.endswith('child'):
+            node_order_by = target.get_node_order_by()
+        else:
+            node_order_by = target.get_parent_node_order_by()
+
         return self._prepare_pos_var(
             pos,
             'move',
+            node_order_by,
             self._valid_pos_for_move,
             self._valid_pos_for_sorted_move)
 
@@ -555,7 +586,8 @@ class Node(models.Model):
         """
 
         fields, filters = [], []
-        for field in self.node_order_by:
+        node_order_by = siblings[0].get_parent_node_order_by()
+        for field in node_order_by:
             value = getattr(newobj, field)
             filters.append(
                 Q(

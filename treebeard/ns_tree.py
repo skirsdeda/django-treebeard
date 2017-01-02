@@ -127,7 +127,7 @@ class NS_Node(Node):
         # do we have a root node already?
         last_root = cls.get_last_root_node()
 
-        if last_root and last_root.node_order_by:
+        if last_root and last_root.get_parent_node_order_by():
             # there are root nodes and node_order_by has been set
             # delegate sorted insertion to add_sibling
             return last_root.add_sibling('sorted-sibling', **kwargs)
@@ -194,7 +194,7 @@ class NS_Node(Node):
         """Adds a child to the node."""
         if not self.is_leaf():
             # there are child nodes, delegate insertion to add_sibling
-            if self.node_order_by:
+            if self.get_node_order_by():
                 pos = 'sorted-sibling'
             else:
                 pos = 'last-sibling'
@@ -342,7 +342,7 @@ class NS_Node(Node):
         relative to another node.
         """
 
-        pos = self._prepare_pos_var_for_move(pos)
+        pos = self._prepare_pos_var_for_move(pos, target)
         cls = get_result_class(self.__class__)
 
         parent = None

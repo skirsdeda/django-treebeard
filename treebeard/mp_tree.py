@@ -289,7 +289,7 @@ class MP_AddRootHandler(MP_AddHandler):
         # do we have a root node already?
         last_root = self.cls.get_last_root_node()
 
-        if last_root and last_root.node_order_by:
+        if last_root and last_root.get_parent_node_order_by():
             # there are root nodes and node_order_by has been set
             # delegate sorted insertion to add_sibling
             return last_root.add_sibling('sorted-sibling', **self.kwargs)
@@ -326,7 +326,7 @@ class MP_AddChildHandler(MP_AddHandler):
         self.kwargs = kwargs
 
     def process(self):
-        if self.node_cls.node_order_by and not self.node.is_leaf():
+        if self.node.get_node_order_by() and not self.node.is_leaf():
             # there are child nodes and node_order_by has been set
             # delegate sorted insertion to add_sibling
             self.node.numchild += 1
@@ -432,7 +432,7 @@ class MP_MoveHandler(MP_ComplexAddMoveHandler):
 
     def process(self):
 
-        self.pos = self.node._prepare_pos_var_for_move(self.pos)
+        self.pos = self.node._prepare_pos_var_for_move(self.pos, self.target)
 
         oldpath = self.node.path
 

@@ -1,6 +1,7 @@
 """Adjacency List"""
 
 from django.core import serializers
+from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
 from django.utils.translation import ugettext_noop as _
 from treebeard.exceptions import InvalidMoveToDescendant, NodeAlreadySaved
@@ -35,10 +36,14 @@ class AL_NodeManager(models.Manager):
     """Custom manager for nodes in an Adjacency List tree."""
     def get_queryset(self):
         """Sets the custom queryset as the default."""
-        if self.model.node_order_by:
-            order_by = ['parent'] + list(self.model.node_order_by)
-        else:
+        # check if model has 'sib_order' field
+        use_sib_order = self.model._use_sib_order()
+        if use_sib_order:
             order_by = ['parent', 'sib_order']
+        else:
+            # if 'sib_order' field does not exist and node_order_by is empty list
+            # ordering will be non-deterministic but at least it will not fail
+            order_by = ['parent'] + list(self.model.node_order_by)
         return super(AL_NodeManager, self).get_queryset().order_by(*order_by)
 
 
@@ -47,6 +52,18 @@ class AL_Node(Node):
 
     objects = AL_NodeManager()
     node_order_by = None
+    _use_sib_order_cache = None
+
+    @classmethod
+    def _use_sib_order(cls):
+        """Checks if 'sib_order' field is being used."""
+        if cls._use_sib_order_cache is None:
+            try:
+                cls._meta.get_field('sib_order')
+                cls._use_sib_order_cache = True
+            except FieldDoesNotExist:
+                cls._use_sib_order_cache = False
+        return cls._use_sib_order_cache
 
     @classmethod
     def add_root(cls, **kwargs):
@@ -348,7 +365,7 @@ class AL_Node(Node):
         relative to another node.
         """
 
-        pos = self._prepare_pos_var_for_move(pos)
+        pos = self._prepare_pos_var_for_move(pos, target)
 
         sib_order = None
         parent = None
