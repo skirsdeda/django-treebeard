@@ -320,7 +320,7 @@ class MP_AddRootHandler(MP_AddHandler):
         if last_root and last_root.node_order_by:
             # there are root nodes and node_order_by has been set
             # delegate sorted insertion to add_sibling
-            return last_root.add_sibling('sorted-sibling', **self.kwargs)
+            return last_root.add_sibling('sorted-sibling', node_cls=self.cls, **self.kwargs)
 
         if last_root:
             # adding the new root node as the last one
@@ -350,7 +350,7 @@ class MP_AddChildHandler(MP_AddHandler):
     def __init__(self, node, **kwargs):
         super(MP_AddChildHandler, self).__init__()
         self.node = node
-        self.node_cls = node.__class__
+        self.node_cls = kwargs.pop('node_cls', node.__class__)
         self.kwargs = kwargs
 
     def process(self):
@@ -401,7 +401,7 @@ class MP_AddSiblingHandler(MP_ComplexAddMoveHandler):
     def __init__(self, node, pos, **kwargs):
         super(MP_AddSiblingHandler, self).__init__()
         self.node = node
-        self.node_cls = node.__class__
+        self.node_cls = kwargs.pop('node_cls', node.__class__)
         self.pos = pos
         self.kwargs = kwargs
 
